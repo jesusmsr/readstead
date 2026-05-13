@@ -1,29 +1,67 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { BookOpen } from 'lucide-react';
 import { FileDropZone } from '@/components/file-drop-zone';
 import { FileInputButton } from '@/components/file-input-button';
+import { LoadingSpinner } from '@/components/loading-spinner';
 import { useToast } from '@/components/ui/toast-provider';
+import { useBookImport } from '@/context/book-import-context';
+import { validateFile } from '@/lib/file-validation';
+import { cn } from '@/lib/utils';
 
 export function HomeContent() {
   const [isImporting, setIsImporting] = useState(false);
   const { showToast } = useToast();
+  const { importBook } = useBookImport();
+  const router = useRouter();
 
-  const handleFileSelect = (file: File) => {
+  const handleFileSelect = async (file: File) => {
+    // Validate file first
+    const validation = validateFile(file);
+    if (!validation.valid) {
+      showToast(validation.message || 'Invalid file', 'error');
+      return;
+    }
+
+    // Prevent duplicate imports
+    if (isImporting) {
+      showToast('Already importing a book. Please wait...', 'info');
+      return;
+    }
+
     setIsImporting(true);
-    showToast(`Selected "${file.name}". Opening book...`, 'success');
-    
-    // TODO: Navigate to reader or process file
-    // For now, just simulate a brief loading state
-    setTimeout(() => {
+    showToast(`Opening "${file.name}"...`, 'success');
+
+    try {
+      // Import the book to context
+      const book = importBook(file);
+
+      // Navigate to appropriate reader
+      const route = book.format === 'pdf' ? '/reader/pdf' : '/reader/epub';
+      
+      // Small delay to show loading state
+      setTimeout(() => {
+        router.push(route);
+      }, 500);
+    } catch (error) {
+      console.error('Import failed:', error);
+      showToast('Failed to import book. Please try again.', 'error');
       setIsImporting(false);
-    }, 1000);
+    }
   };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-3.5rem)] px-4 py-12">
-      <div className="flex flex-col items-center gap-8 max-w-lg w-full">
+      {isImporting && (
+        <LoadingSpinner 
+          message="Opening book..." 
+          fullScreen 
+        />
+      )}
+
+      <div className={cn('flex flex-col items-center gap-8 max-w-lg w-full', isImporting && 'opacity-50 pointer-events-none')}>
         {/* Hero Section */}
         <div className="flex flex-col items-center gap-4 text-center">
           <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10">

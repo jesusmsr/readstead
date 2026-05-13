@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Home, RefreshCw } from 'lucide-react';
 
@@ -29,10 +30,10 @@ export default function GlobalError({
               Try Again
             </Button>
             <Button asChild className="gap-2">
-              <a href="/">
+              <Link href="/">
                 <Home className="h-4 w-4" />
                 Go Home
-              </a>
+              </Link>
             </Button>
           </div>
         </div>
