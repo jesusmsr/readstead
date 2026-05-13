@@ -1,15 +1,22 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Lora } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
+  variable: "--font-sans",
   subsets: ["latin"],
 });
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+  variable: "--font-mono",
   subsets: ["latin"],
+});
+
+const lora = Lora({
+  variable: "--font-serif",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -26,10 +33,17 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground">
-        {children}
+      <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
+        <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="container flex h-14 max-w-screen-2xl items-center px-4">
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-semibold tracking-tight">Readstead</span>
+            </div>
+          </div>
+        </header>
+        <main className="flex-1">{children}</main>
       </body>
     </html>
   );
