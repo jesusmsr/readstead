@@ -38,8 +38,7 @@ export function HomeContent() {
       setTimeout(() => {
         router.push(route);
       }, 500);
-    } catch (error) {
-      console.error('Import failed:', error);
+    } catch {
       showToast('Failed to import book. Please try again.', 'error');
       setIsImporting(false);
     }

@@ -17,6 +17,10 @@ interface BookImportContextType {
 
 const BookImportContext = createContext<BookImportContextType | undefined>(undefined);
 
+/**
+ * Hook to access the current book import state
+ * @returns The book import context with current book and import functions
+ */
 export function useBookImport() {
   const context = useContext(BookImportContext);
   if (!context) {
@@ -25,10 +29,18 @@ export function useBookImport() {
   return context;
 }
 
+/**
+ * Generate a unique book ID
+ */
 function generateBookId(): string {
   return `book_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
 
+/**
+ * Determine file format from extension or MIME type
+ * @param file - The file to check
+ * @returns 'epub' | 'pdf' - defaults to epub if unable to determine
+ */
 function getFileFormat(file: File): 'epub' | 'pdf' {
   const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
   if (extension === '.epub') return 'epub';

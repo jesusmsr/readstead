@@ -132,7 +132,6 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
           if (isMounted) {
             clearTimeout(slowTimer);
             clearTimeout(maxTimer);
-            console.error('EPUB error:', err);
             
             let message = 'Failed to open this EPUB file.';
             if (err instanceof Error) {
