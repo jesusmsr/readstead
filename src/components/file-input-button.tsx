@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { Upload, FileText } from 'lucide-react';
+import { BookPlus, FileText, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { validateFile, formatFileSize } from '@/lib/file-validation';
@@ -44,7 +44,6 @@ export function FileInputButton({
 
     if (!result.valid) {
       showToast(result.message || 'Invalid file', 'error');
-      // Reset input
       if (inputRef.current) {
         inputRef.current.value = '';
       }
@@ -55,8 +54,15 @@ export function FileInputButton({
     onFileSelect?.(file);
   };
 
+  const clearSelection = () => {
+    setSelectedFile(null);
+    if (inputRef.current) {
+      inputRef.current.value = '';
+    }
+  };
+
   return (
-    <div className={cn('flex flex-col items-center gap-3', className)}>
+    <div className={cn('flex flex-col items-center gap-3 w-full sm:w-auto', className)}>
       <input
         ref={inputRef}
         type="file"
@@ -66,27 +72,44 @@ export function FileInputButton({
         className="sr-only"
         aria-label="Select ebook file"
       />
-      <Button
-        onClick={handleClick}
-        onKeyDown={handleKeyDown}
-        disabled={disabled}
-        size="lg"
-        className="gap-2"
-        role="button"
-        tabIndex={0}
-      >
-        <Upload className="h-4 w-4" />
-        Add Your First Book
-      </Button>
 
-      {selectedFile && (
-        <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
-          <FileText className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">{selectedFile.name}</span>
-          <span className="text-xs text-muted-foreground">
+      {!selectedFile ? (
+        <Button
+          onClick={handleClick}
+          onKeyDown={handleKeyDown}
+          disabled={disabled}
+          size="lg"
+          className="gap-2 w-full sm:w-auto h-14 sm:h-11 text-base"
+          role="button"
+          tabIndex={0}
+        >
+          <BookPlus className="h-5 w-5 sm:h-4 sm:w-4" />
+          <span className="sm:hidden">Select a Book</span>
+          <span className="hidden sm:inline">Select a Book from Device</span>
+        </Button>
+      ) : (
+        <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2 w-full sm:w-auto">
+          <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+          <span className="text-sm font-medium truncate flex-1">{selectedFile.name}</span>
+          <span className="text-xs text-muted-foreground shrink-0">
             ({formatFileSize(selectedFile.size)})
           </span>
+          {!disabled && (
+            <button
+              onClick={clearSelection}
+              className="ml-1 p-1 rounded hover:bg-muted transition-colors"
+              aria-label="Clear selection"
+            >
+              <X className="h-3 w-3 text-muted-foreground" />
+            </button>
+          )}
         </div>
+      )}
+
+      {!selectedFile && (
+        <p className="text-xs text-muted-foreground text-center">
+          Supports EPUB and PDF
+        </p>
       )}
     </div>
   );

@@ -28,7 +28,7 @@ export function ReaderNavigation({
   return (
     <div
       className={cn(
-        'flex items-center justify-center gap-4 px-4 py-3 border-t border-border bg-background',
+        'flex items-center justify-center gap-2 sm:gap-4 px-2 sm:px-4 py-2 sm:py-3 border-t border-border bg-background',
         className
       )}
     >
@@ -37,20 +37,21 @@ export function ReaderNavigation({
         size="lg"
         onClick={onPrev}
         disabled={!canGoPrev}
-        className="gap-2 min-w-[120px] touch-manipulation"
+        className="gap-1 sm:gap-2 min-w-[100px] sm:min-w-[120px] touch-manipulation h-11 sm:h-10"
         aria-label="Previous chapter"
       >
         <ChevronLeft className="h-5 w-5" />
-        Previous
+        <span className="hidden sm:inline">Previous</span>
       </Button>
 
       {hasProgress && (
-        <div className="text-sm text-muted-foreground min-w-[140px] text-center">
+        <div className="text-xs sm:text-sm text-muted-foreground min-w-[100px] sm:min-w-[140px] text-center">
           <span className="font-medium text-foreground">
-            Chapter {currentChapter + 1}
+            {currentChapter + 1}
           </span>
-          <span className="mx-1">of</span>
+          <span className="mx-1">/</span>
           <span className="font-medium text-foreground">{totalChapters}</span>
+          <span className="hidden sm:inline ml-1">chapters</span>
         </div>
       )}
 
@@ -59,10 +60,10 @@ export function ReaderNavigation({
         size="lg"
         onClick={onNext}
         disabled={!canGoNext}
-        className="gap-2 min-w-[120px] touch-manipulation"
+        className="gap-1 sm:gap-2 min-w-[100px] sm:min-w-[120px] touch-manipulation h-11 sm:h-10"
         aria-label="Next chapter"
       >
-        Next
+        <span className="hidden sm:inline">Next</span>
         <ChevronRight className="h-5 w-5" />
       </Button>
     </div>
