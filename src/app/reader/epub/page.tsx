@@ -2,24 +2,28 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, BookOpen, List } from 'lucide-react';
+import { ArrowLeft, BookOpen, List, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { EpubViewer, EpubViewerHandle } from '@/components/epub-viewer';
 import { EpubErrorBoundary } from '@/components/epub-error-boundary';
 import { TocSidebar } from '@/components/toc-sidebar';
+import { SettingsPanel } from '@/components/settings-panel';
 import { ReaderNavigation } from '@/components/reader-navigation';
 import { useKeyboardNavigation } from '@/hooks/use-keyboard-navigation';
 import { useBookImport } from '@/context/book-import-context';
+import { useReaderSettings } from '@/context/reader-settings-context';
 import { useToast } from '@/components/ui/toast-provider';
 import { TocItem } from '@/types';
 
 export default function EpubReaderPage() {
   const { currentBook, clearCurrentBook } = useBookImport();
+  const { settings } = useReaderSettings();
   const [isRouting, setIsRouting] = useState(true);
   const [chapterProgress, setChapterProgress] = useState({ current: 0, total: 0 });
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
   const [isTocOpen, setIsTocOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [currentHref, setCurrentHref] = useState('');
   const [viewerKey, setViewerKey] = useState(0);
   const viewerRef = React.useRef<EpubViewerHandle>(null);
@@ -83,16 +87,24 @@ export default function EpubReaderPage() {
     disabled: isRouting,
   });
 
-  // 'T' key to toggle TOC
+  // 'T' key to toggle TOC, 'S' key to toggle Settings
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
       if (e.key === 't' || e.key === 'T') {
-        // Don't trigger if typing in an input
-        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-          return;
-        }
         e.preventDefault();
         setIsTocOpen((prev) => !prev);
+        // Close settings when opening TOC
+        setIsSettingsOpen(false);
+      } else if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        setIsSettingsOpen((prev) => !prev);
+        // Close TOC when opening settings
+        setIsTocOpen(false);
       }
     };
 
@@ -142,16 +154,35 @@ export default function EpubReaderPage() {
           </span>
         </div>
 
-        <Button
-          onClick={() => setIsTocOpen(!isTocOpen)}
-          variant="ghost"
-          size="sm"
-          className="gap-2"
-          aria-label="Toggle table of contents"
-        >
-          <List className="h-4 w-4" />
-          <span className="hidden sm:inline">Contents</span>
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            onClick={() => {
+              setIsTocOpen(!isTocOpen);
+              setIsSettingsOpen(false);
+            }}
+            variant="ghost"
+            size="sm"
+            className="gap-2"
+            aria-label="Toggle table of contents"
+          >
+            <List className="h-4 w-4" />
+            <span className="hidden sm:inline">Contents</span>
+          </Button>
+
+          <Button
+            onClick={() => {
+              setIsSettingsOpen(!isSettingsOpen);
+              setIsTocOpen(false);
+            }}
+            variant="ghost"
+            size="sm"
+            className="gap-2"
+            aria-label="Toggle settings"
+          >
+            <Settings className="h-4 w-4" />
+            <span className="hidden sm:inline">Settings</span>
+          </Button>
+        </div>
       </div>
 
       {/* Main Content Area */}
@@ -176,8 +207,19 @@ export default function EpubReaderPage() {
               file={currentBook.file}
               className="h-full"
               onTocLoaded={handleTocLoaded}
+              fontSize={settings.fontSize}
+              lineHeight={settings.lineHeight}
+              maxWidth={settings.maxWidth}
             />
           </EpubErrorBoundary>
+        </div>
+
+        {/* Settings Panel */}
+        <div className="sm:relative absolute z-30 right-0">
+          <SettingsPanel
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+          />
         </div>
       </div>
 

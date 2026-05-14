@@ -20,6 +20,9 @@ interface EpubViewerProps {
   file: File;
   className?: string;
   onTocLoaded?: (toc: TocItem[]) => void;
+  fontSize?: number;
+  lineHeight?: number;
+  maxWidth?: 'narrow' | 'medium' | 'wide';
 }
 
 export type ViewerState =
@@ -34,7 +37,7 @@ const SLOW_LOAD_THRESHOLD = 8000; // 8 seconds
 const MAX_LOAD_TIMEOUT = 30000; // 30 seconds
 
 export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
-  function EpubViewer({ file, className, onTocLoaded }, ref) {
+  function EpubViewer({ file, className, onTocLoaded, fontSize = 16, lineHeight = 1.6, maxWidth = 'medium' }, ref) {
     const containerRef = useRef<HTMLDivElement>(null);
     const bookRef = useRef<ePub.Book | null>(null);
     const renditionRef = useRef<ePub.Rendition | null>(null);
@@ -196,6 +199,32 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
       window.addEventListener('resize', handleResize);
       return () => window.removeEventListener('resize', handleResize);
     }, []);
+
+    // Apply reader settings to the rendition
+    useEffect(() => {
+      if (!renditionRef.current || viewerState.status !== 'ready') return;
+
+      const rendition = renditionRef.current;
+
+      // Apply font size
+      rendition.themes.fontSize(`${fontSize}px`);
+
+      // Apply line height via CSS override
+      rendition.themes.override('line-height', `${lineHeight}`);
+
+      // Apply max width by adjusting the rendition's layout
+      // We use CSS on the iframe's body through the theme system
+      const maxWidthPixels = {
+        narrow: '600px',
+        medium: '800px',
+        wide: '1000px',
+      }[maxWidth];
+
+      rendition.themes.override('max-width', maxWidthPixels, true);
+
+      // Force resize to apply changes
+      rendition.resize();
+    }, [fontSize, lineHeight, maxWidth, viewerState.status]);
 
     const handleRetry = useCallback(() => {
       setViewerState({ status: 'loading' });
