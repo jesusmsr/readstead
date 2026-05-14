@@ -1,5 +1,6 @@
 # Dependencies
 node_modules
+.windsurf/*
 
 # Build outputs
 .next

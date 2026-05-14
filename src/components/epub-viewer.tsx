@@ -6,19 +6,23 @@ import { AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { cn } from '@/lib/utils';
+import { TocItem } from '@/types';
+import { extractToc } from '@/lib/epub-toc';
 
 export interface EpubViewerHandle {
   next: () => void;
   prev: () => void;
-  getCurrentLocation: () => { index: number; total: number } | null;
+  goTo: (href: string) => void;
+  getCurrentLocation: () => { index: number; total: number; href: string } | null;
 }
 
 interface EpubViewerProps {
   file: File;
   className?: string;
+  onTocLoaded?: (toc: TocItem[]) => void;
 }
 
-type ViewerState = 
+export type ViewerState =
   | { status: 'loading' }
   | { status: 'slow' }
   | { status: 'ready' }
@@ -30,7 +34,7 @@ const SLOW_LOAD_THRESHOLD = 8000; // 8 seconds
 const MAX_LOAD_TIMEOUT = 30000; // 30 seconds
 
 export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
-  function EpubViewer({ file, className }, ref) {
+  function EpubViewer({ file, className, onTocLoaded }, ref) {
     const containerRef = useRef<HTMLDivElement>(null);
     const bookRef = useRef<ePub.Book | null>(null);
     const renditionRef = useRef<ePub.Rendition | null>(null);
@@ -38,6 +42,7 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
     const [retryKey, setRetryKey] = useState(0);
     const spineLengthRef = useRef(0);
     const currentIndexRef = useRef(0);
+    const currentHrefRef = useRef('');
 
     // Expose navigation methods via ref
     useImperativeHandle(ref, () => ({
@@ -51,11 +56,17 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
           renditionRef.current.prev();
         }
       },
+      goTo: (href: string) => {
+        if (renditionRef.current) {
+          renditionRef.current.display(href);
+        }
+      },
       getCurrentLocation: () => {
         if (!bookRef.current) return null;
         return {
           index: currentIndexRef.current,
           total: spineLengthRef.current,
+          href: currentHrefRef.current,
         };
       },
     }), []);
@@ -82,16 +93,10 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
 
       const initBook = async () => {
         try {
-          // For very large files (>50MB), warn but still try
-          if (file.size > 50 * 1024 * 1024) {
-            console.warn('Large EPUB file detected:', (file.size / 1024 / 1024).toFixed(1), 'MB');
-          }
-
           const arrayBuffer = await file.arrayBuffer();
-          
+
           if (!isMounted) return;
 
-          // Check for empty or near-empty files (likely corrupt)
           if (arrayBuffer.byteLength < 100) {
             throw new Error('File appears to be empty or corrupted.');
           }
@@ -102,12 +107,23 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
           await book.ready;
           if (!isMounted || !containerRef.current) return;
 
-          // Store spine length for progress
           spineLengthRef.current = book.spine.length;
 
-          // If spine is empty, the EPUB has no readable content
           if (spineLengthRef.current === 0) {
             throw new Error('This EPUB file has no readable content. It may be corrupted or have an invalid structure.');
+          }
+
+          // Extract TOC
+          try {
+            const toc = extractToc(book.navigation);
+            if (isMounted) {
+              onTocLoaded?.(toc);
+            }
+          } catch {
+            // TOC extraction failed but book can still be read
+            if (isMounted) {
+              onTocLoaded?.([]);
+            }
           }
 
           const rendition = book.renderTo(containerRef.current, {
@@ -118,8 +134,9 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
           renditionRef.current = rendition;
 
           // Track location changes
-          rendition.on('relocated', (location: { start: { index: number } }) => {
+          rendition.on('relocated', (location: { start: { index: number; href: string } }) => {
             currentIndexRef.current = location.start.index;
+            currentHrefRef.current = location.start.href;
           });
 
           await rendition.display();
@@ -132,7 +149,7 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
           if (isMounted) {
             clearTimeout(slowTimer);
             clearTimeout(maxTimer);
-            
+
             let message = 'Failed to open this EPUB file.';
             if (err instanceof Error) {
               if (err.message.includes('password') || err.message.includes('encrypted')) {
@@ -145,7 +162,7 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
                 message = err.message;
               }
             }
-            
+
             setViewerState({ status: 'error', message });
           }
         }
@@ -166,7 +183,7 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
           bookRef.current = null;
         }
       };
-    }, [file, retryKey]);
+    }, [file, retryKey, onTocLoaded]);
 
     // Handle window resize
     useEffect(() => {
@@ -216,10 +233,10 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
             )}
           </div>
         )}
-        <div 
-          ref={containerRef} 
+        <div
+          ref={containerRef}
           className="w-full h-full min-h-[300px] md:min-h-[500px]"
-          style={{ 
+          style={{
             opacity: isLoading ? 0 : 1,
             transition: 'opacity 0.3s ease'
           }}

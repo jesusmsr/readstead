@@ -2,20 +2,25 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, BookOpen } from 'lucide-react';
+import { ArrowLeft, BookOpen, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { EpubViewer, EpubViewerHandle } from '@/components/epub-viewer';
 import { EpubErrorBoundary } from '@/components/epub-error-boundary';
+import { TocSidebar } from '@/components/toc-sidebar';
 import { ReaderNavigation } from '@/components/reader-navigation';
 import { useKeyboardNavigation } from '@/hooks/use-keyboard-navigation';
 import { useBookImport } from '@/context/book-import-context';
 import { useToast } from '@/components/ui/toast-provider';
+import { TocItem } from '@/types';
 
 export default function EpubReaderPage() {
   const { currentBook, clearCurrentBook } = useBookImport();
   const [isRouting, setIsRouting] = useState(true);
   const [chapterProgress, setChapterProgress] = useState({ current: 0, total: 0 });
+  const [tocItems, setTocItems] = useState<TocItem[]>([]);
+  const [isTocOpen, setIsTocOpen] = useState(false);
+  const [currentHref, setCurrentHref] = useState('');
   const [viewerKey, setViewerKey] = useState(0);
   const viewerRef = React.useRef<EpubViewerHandle>(null);
   const router = useRouter();
@@ -51,6 +56,7 @@ export default function EpubReaderPage() {
           current: location.index,
           total: location.total,
         });
+        setCurrentHref(location.href);
       }
     }, 500);
 
@@ -65,12 +71,34 @@ export default function EpubReaderPage() {
     viewerRef.current?.prev();
   }, []);
 
+  const handleTocItemClick = React.useCallback((href: string) => {
+    viewerRef.current?.goTo(href);
+    setIsTocOpen(false);
+  }, []);
+
   // Keyboard navigation
   useKeyboardNavigation({
     onNext: handleNext,
     onPrev: handlePrev,
     disabled: isRouting,
   });
+
+  // 'T' key to toggle TOC
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 't' || e.key === 'T') {
+        // Don't trigger if typing in an input
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+          return;
+        }
+        e.preventDefault();
+        setIsTocOpen((prev) => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleGoHome = () => {
     clearCurrentBook();
@@ -80,6 +108,10 @@ export default function EpubReaderPage() {
   const handleResetViewer = () => {
     setViewerKey((prev) => prev + 1);
   };
+
+  const handleTocLoaded = React.useCallback((toc: TocItem[]) => {
+    setTocItems(toc);
+  }, []);
 
   if (!currentBook) {
     return <LoadingSpinner message="Loading..." fullScreen />;
@@ -102,25 +134,51 @@ export default function EpubReaderPage() {
           <ArrowLeft className="h-4 w-4" />
           <span className="hidden sm:inline">Back</span>
         </Button>
+
         <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
           <BookOpen className="h-4 w-4 shrink-0" />
           <span className="truncate max-w-[150px] sm:max-w-[200px] md:max-w-[300px]">
             {currentBook.file.name}
           </span>
         </div>
-        <div className="w-10 sm:w-20" />
+
+        <Button
+          onClick={() => setIsTocOpen(!isTocOpen)}
+          variant="ghost"
+          size="sm"
+          className="gap-2"
+          aria-label="Toggle table of contents"
+        >
+          <List className="h-4 w-4" />
+          <span className="hidden sm:inline">Contents</span>
+        </Button>
       </div>
 
-      {/* EPUB Viewer with Error Boundary */}
-      <div className="flex-1 overflow-hidden min-h-0">
-        <EpubErrorBoundary onReset={handleResetViewer}>
-          <EpubViewer
-            key={viewerKey}
-            ref={viewerRef}
-            file={currentBook.file}
-            className="h-full"
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden min-h-0 relative">
+        {/* TOC Sidebar */}
+        <div className="sm:relative absolute z-30">
+          <TocSidebar
+            items={tocItems}
+            currentHref={currentHref}
+            onItemClick={handleTocItemClick}
+            isOpen={isTocOpen}
+            onClose={() => setIsTocOpen(false)}
           />
-        </EpubErrorBoundary>
+        </div>
+
+        {/* EPUB Viewer */}
+        <div className="flex-1 overflow-hidden">
+          <EpubErrorBoundary onReset={handleResetViewer}>
+            <EpubViewer
+              key={viewerKey}
+              ref={viewerRef}
+              file={currentBook.file}
+              className="h-full"
+              onTocLoaded={handleTocLoaded}
+            />
+          </EpubErrorBoundary>
+        </div>
       </div>
 
       {/* Navigation */}
